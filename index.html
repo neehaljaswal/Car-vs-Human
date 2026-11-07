@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#101827" />
+  <title>Image Classifier — Teachable Machine</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1120; --panel: #121c2e; --panel2: #17243a;
+      --text: #f4f7fb; --muted: #9aa9bd; --line: #26364d;
+      --accent: #8b9cff; --accent2: #6ee7c2; --danger: #ff8e9b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+      color: var(--text); background: radial-gradient(ellipse at 50% -20%, #26365b 0%, transparent 55%), var(--bg);
+    }
+    .shell { width: min(1060px, calc(100% - 32px)); margin: 0 auto; padding: 54px 0 36px; }
+    header { text-align: center; margin-bottom: 34px; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 99px; color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent2); box-shadow: 0 0 12px var(--accent2); }
+    h1 { font-size: clamp(34px, 6vw, 56px); letter-spacing: -.045em; margin: 18px 0 10px; line-height: 1.05; }
+    .sub { color: var(--muted); max-width: 580px; margin: 0 auto; line-height: 1.65; font-size: 15px; }
+    .layout { display: grid; grid-template-columns: 1.05fr .95fr; gap: 18px; align-items: stretch; }
+    .card { background: linear-gradient(145deg, rgba(23,36,58,.96), rgba(15,25,42,.96)); border: 1px solid var(--line); border-radius: 22px; padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.18); }
+    .card-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+    h2 { font-size: 16px; margin: 0; letter-spacing: -.01em; }
+    .status { color: var(--muted); font-size: 12px; display:flex; align-items:center; gap:7px; }
+    .status::before { content:""; width:7px; height:7px; background:#73839b; border-radius:50%; }
+    .status.live::before { background:var(--accent2); box-shadow:0 0 10px var(--accent2); }
+    .camera-stage { min-height: 330px; display:grid; place-items:center; background:#080e19; border:1px solid #26364d; border-radius:16px; overflow:hidden; position:relative; }
+    #webcam-container canvas { display:block; width:min(100%, 480px); height:auto; border-radius:12px; }
+    .placeholder { text-align:center; padding:30px; color:var(--muted); }
+    .camera-icon { width:56px; height:56px; margin:0 auto 14px; border-radius:18px; display:grid; place-items:center; background:var(--panel2); color:var(--accent); font-size:25px; }
+    .placeholder strong { display:block; color:var(--text); font-size:15px; margin-bottom:6px; }
+    .controls { display:flex; gap:10px; margin-top:16px; }
+    button { border:0; border-radius:12px; padding:12px 18px; font:inherit; font-size:14px; font-weight:650; cursor:pointer; transition:transform .15s, opacity .15s; }
+    button:hover:not(:disabled) { transform:translateY(-1px); }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    .primary { color:#0b1120; background:linear-gradient(100deg, #a5b2ff, #78e8cb); flex:1; }
+    .secondary { color:var(--text); background:#26364d; border:1px solid #354862; }
+    .hint { color:var(--muted); font-size:12px; line-height:1.55; margin:13px 2px 0; }
+    #message { min-height:20px; margin-top:12px; color:var(--danger); font-size:13px; line-height:1.5; }
+    .prediction-empty { color:var(--muted); background:#0c1525; border:1px dashed #31435d; border-radius:14px; padding:20px; font-size:13px; line-height:1.6; }
+    #label-container { display:grid; gap:13px; }
+    .prediction { display:grid; gap:7px; }
+    .prediction-top { display:flex; justify-content:space-between; gap:12px; font-size:13px; }
+    .class-name { font-weight:600; overflow-wrap:anywhere; }
+    .percent { color:var(--muted); font-variant-numeric:tabular-nums; }
+    .track { height:9px; background:#26364d; border-radius:99px; overflow:hidden; }
+    .fill { height:100%; width:0%; border-radius:99px; background:linear-gradient(90deg, #8799ff, #6ee7c2); transition:width .18s ease; }
+    .top-result { margin-bottom:17px; padding:16px; border-radius:15px; background:linear-gradient(120deg, rgba(139,156,255,.13), rgba(110,231,194,.08)); border:1px solid rgba(139,156,255,.25); }
+    .top-label { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.09em; }
+    #top-class { font-size:22px; font-weight:750; margin-top:5px; overflow-wrap:anywhere; }
+    #top-confidence { color:var(--accent2); font-size:13px; margin-top:3px; }
+    footer { text-align:center; color:#708199; font-size:12px; margin-top:25px; }
+    @media (max-width:760px) { .shell{padding-top:35px}.layout{grid-template-columns:1fr}.camera-stage{min-height:260px}.card{padding:18px} }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="eyebrow"><span class="dot"></span> Live image recognition</div>
+      <h1>Image Classifier</h1>
+      <p class="sub">Point your camera at an object and let the machine-learning model identify what it sees.</p>
+    </header>
+
+    <section class="layout">
+      <article class="card">
+        <div class="card-head">
+          <h2>Camera preview</h2>
+          <span id="status" class="status">Camera off</span>
+        </div>
+        <div class="camera-stage" id="webcam-container">
+          <div class="placeholder" id="placeholder">
+            <div class="camera-icon">⌁</div>
+            <strong>Your camera preview will appear here</strong>
+            Select Start to load the model and request camera access.
+          </div>
+        </div>
+        <div class="controls">
+          <button class="primary" id="start-btn" type="button">Start camera</button>
+          <button class="secondary" id="stop-btn" type="button" disabled>Stop</button>
+        </div>
+        <p class="hint">Your browser will ask for camera permission. Camera access generally requires HTTPS or localhost.</p>
+        <div id="message" role="status" aria-live="polite"></div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <h2>Model predictions</h2>
+          <span class="status" id="model-status">Model not loaded</span>
+        </div>
+        <div id="top-result" class="top-result" hidden>
+          <div class="top-label">Most likely match</div>
+          <div id="top-class">—</div>
+          <div id="top-confidence">—</div>
+        </div>
+        <div id="label-container">
+          <div class="prediction-empty">Start the camera to see live predictions and confidence scores for each class.</div>
+        </div>
+      </article>
+    </section>
+    <footer>Powered by TensorFlow.js · Teachable Machine</footer>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+  <script>
+    // Keep the exported Teachable Machine files in ./my_model/
+    const MODEL_URL = "./my_model/";
+
+    let model = null;
+    let webcam = null;
+    let animationId = null;
+    let running = false;
+    let predicting = false;
+
+    const cameraContainer = document.getElementById("webcam-container");
+    const labelsContainer = document.getElementById("label-container");
+    const startButton = document.getElementById("start-btn");
+    const stopButton = document.getElementById("stop-btn");
+    const message = document.getElementById("message");
+    const statusEl = document.getElementById("status");
+    const modelStatus = document.getElementById("model-status");
+
+    startButton.addEventListener("click", start);
+    stopButton.addEventListener("click", stop);
+
+    function setMessage(text = "", isError = true) {
+      message.textContent = text;
+      message.style.color = isError ? "var(--danger)" : "var(--accent2)";
+    }
+
+    async function start() {
+      if (running) return;
+      startButton.disabled = true;
+      setMessage("Loading model…", false);
+      try {
+        if (!window.tmImage) throw new Error("The Teachable Machine library could not load. Check your internet connection and refresh.");
+        if (!model) {
+          model = await tmImage.load(MODEL_URL + "model.json", MODEL_URL + "metadata.json");
+          buildPredictionRows(model.getTotalClasses());
+          modelStatus.textContent = "Model loaded";
+          modelStatus.classList.add("live");
+        }
+
+        webcam = new tmImage.Webcam(320, 320, true);
+        await webcam.setup();
+        await webcam.play();
+
+        const placeholder = document.getElementById("placeholder");
+        if (placeholder) placeholder.remove();
+        cameraContainer.appendChild(webcam.canvas);
+        webcam.canvas.style.width = "100%";
+        webcam.canvas.style.maxWidth = "480px";
+        webcam.canvas.style.height = "auto";
+
+        running = true;
+        statusEl.textContent = "Camera live";
+        statusEl.classList.add("live");
+        stopButton.disabled = false;
+        setMessage("Camera started. Predictions are updating live.", false);
+        loop();
+      } catch (error) {
+        console.error(error);
+        const friendly = error.name === "NotAllowedError"
+          ? "Camera permission was denied. Allow camera access in your browser and try again."
+          : error.message || "Something went wrong while starting the model.";
+        setMessage(friendly);
+        startButton.disabled = false;
+        if (webcam) { try { webcam.stop(); } catch (_) {} webcam = null; }
+      }
+    }
+
+    function buildPredictionRows(count) {
+      labelsContainer.innerHTML = "";
+      for (let i = 0; i < count; i++) {
+        const row = document.createElement("div");
+        row.className = "prediction";
+        row.innerHTML = `
+          <div class="prediction-top">
+            <span class="class-name"></span>
+            <span class="percent">0%</span>
+          </div>
+          <div class="track"><div class="fill"></div></div>`;
+        labelsContainer.appendChild(row);
+      }
+    }
+
+    async function loop() {
+      if (!running || !webcam) return;
+      webcam.update();
+      if (!predicting) {
+        predicting = true;
+        try {
+          const predictions = await model.predict(webcam.canvas);
+          predictions.sort((a, b) => b.probability - a.probability);
+          const rows = labelsContainer.querySelectorAll(".prediction");
+          predictions.forEach((prediction, index) => {
+            const row = rows[index];
+            if (!row) return;
+            const percent = prediction.probability * 100;
+            row.querySelector(".class-name").textContent = prediction.className;
+            row.querySelector(".percent").textContent = percent.toFixed(1) + "%";
+            row.querySelector(".fill").style.width = percent + "%";
+          });
+          if (predictions.length) {
+            document.getElementById("top-result").hidden = false;
+            document.getElementById("top-class").textContent = predictions[0].className;
+            document.getElementById("top-confidence").textContent =
+              (predictions[0].probability * 100).toFixed(1) + "% confidence";
+          }
+        } catch (error) {
+          console.error(error);
+          setMessage("Prediction failed. Check that the model files are valid.");
+        } finally {
+          predicting = false;
+        }
+      }
+      animationId = window.requestAnimationFrame(loop);
+    }
+
+    function stop() {
+      running = false;
+      if (animationId) cancelAnimationFrame(animationId);
+      animationId = null;
+      if (webcam) {
+        try { webcam.stop(); } catch (_) {}
+        if (webcam.canvas && webcam.canvas.parentNode) webcam.canvas.remove();
+        webcam = null;
+      }
+      statusEl.textContent = "Camera off";
+      statusEl.classList.remove("live");
+      stopButton.disabled = true;
+      startButton.disabled = false;
+      setMessage("Camera stopped.", false);
+    }
+
+    window.addEventListener("beforeunload", () => {
+      if (webcam) { try { webcam.stop(); } catch (_) {} }
+    });
+  </script>
+</body>
+</html>
