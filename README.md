@@ -1,10 +1,7 @@
 # Teachable Machine Image Classifier
 
-## Add your model
-1. In Teachable Machine, export your Image Project using **TensorFlow.js**.
-2. Extract the downloaded ZIP.
-3. Copy `model.json`, `metadata.json`, and every `.bin` weights file into this project's `my_model/` folder.
-4. Keep the filenames and folder structure as exported. The site expects `./my_model/model.json` and `./my_model/metadata.json`.
+## Model included
+Your Teachable Machine export is already installed in `my_model/` (`model.json`, `metadata.json`, and `weights.bin`). Keep this folder intact when uploading the project to GitHub/Vercel.
 
 The `my_model/` folder should look similar to:
 
